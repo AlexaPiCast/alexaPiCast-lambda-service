@@ -9,12 +9,9 @@
 
 const Alexa = require('alexa-sdk');
 const mqtt = require('mqtt');
-// const http = require('http');
 const request = require('request');
 
-const APP_ID = '';  // TODO replace with your app ID.
-const iotTopicPrefix = ''; //TODO replace with your own topic
-const iotBrokerURL = 'mqtt://iot.eclipse.org'; // TODO replace with your MQTT broker
+var iotBrokerURL, iotTopicPrefix;
 const connectOptions = {}; // TODO provide options specific to your MQTT broker (optional)
 const languageStrings = require('resource.js');
 var ip, tvStatus;
@@ -40,7 +37,6 @@ var searchVideoOnYoutube = function(keyword, callback) {
     var jsonBody = JSON.parse(body);
     var videoIds = [];
     if (body.items !== null) {
-      // console.log(body.items[0].id.videoId);
       jsonBody.items.forEach(function(item) {
          videoIds.push(item.id.videoId);
        });
@@ -69,7 +65,6 @@ const handlers = {
       connectToIot('/tv', function(client) {
         videoIds.forEach(function(videoId) {
           mqttPublish(client, '/command/play', videoId);
-          // client.publish('alfvin_pi/command/play', videoId);
         });
         const speechOutput = 'Your request is my command';
         handler.emit(':tell', speechOutput);
@@ -81,7 +76,6 @@ const handlers = {
     const handler = this;
     connectToIot('/tv', function(client) {
       mqttPublish(client, '/command', 'tv on');
-      // client.publish('alfvin_pi/command', 'tv on');
       client.on('message', function (topic, message) {
         // message is Buffer
         console.log(message.toString());
@@ -96,7 +90,6 @@ const handlers = {
     const handler = this;
     connectToIot('/tv', function(client) {
       mqttPublish(client, '/command', 'tv off');
-      // client.publish('alfvin_pi/command', 'tv off');
       client.on('message', function (topic, message) {
         // message is Buffer
         console.log(message.toString());
@@ -112,7 +105,6 @@ const handlers = {
 
     connectToIot('/tv', function(client) {
       mqttPublish(client, '/command', 'tv status');
-      // client.publish('alfvin_pi/command', 'tv status');
       client.on('message', function (topic, message) {
         // message is Buffer
         console.log(message.toString());
@@ -192,7 +184,9 @@ const handlers = {
 
 exports.handler = function (event, context) {
   const alexa = Alexa.handler(event, context);
-  alexa.APP_ID = APP_ID;
+  alexa.APP_ID = process.env.APP_ID;
+  iotTopicPrefix = process.env.TOPIC_PREFIX;
+  iotBrokerURL = process.env.BROKER_URL;
   // To enable string internationalization (i18n) features, set a resources object.
   alexa.resources = languageStrings;
   alexa.registerHandlers(handlers);
