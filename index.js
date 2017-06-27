@@ -11,7 +11,7 @@ const Alexa = require('alexa-sdk');
 const mqtt = require('mqtt');
 const request = require('request');
 
-var iotBrokerURL, iotTopicPrefix;
+var iotBrokerURL, iotTopicPrefix, youtubeApiKey;
 const connectOptions = {}; // TODO provide options specific to your MQTT broker (optional)
 const languageStrings = require('resource.js');
 var ip, tvStatus;
@@ -30,7 +30,7 @@ var mqttPublish = function(client, topic, payload) {
 };
 
 var searchVideoOnYoutube = function(keyword, callback) {
-  var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&key=AIzaSyCNxVsygViPBE4gGIiUJlDCgSu7MZ4K_a8';
+  var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&key=' + youtubeApiKey;
   url += '&q=' + keyword;
   request(url, function (error, response, body) {
 
@@ -187,6 +187,7 @@ exports.handler = function (event, context) {
   alexa.APP_ID = process.env.APP_ID;
   iotTopicPrefix = process.env.TOPIC_PREFIX;
   iotBrokerURL = process.env.BROKER_URL;
+  youtubeApiKey = process.env.YOUTUBE_API_KEY;
   // To enable string internationalization (i18n) features, set a resources object.
   alexa.resources = languageStrings;
   alexa.registerHandlers(handlers);
