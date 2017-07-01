@@ -15,12 +15,16 @@ var deviceId, iotBrokerURL, iotTopicPrefix, youtubeApiKey;
 const connectOptions = {}; // TODO provide options specific to your MQTT broker (optional)
 const languageStrings = require('resource.js');
 var ip, tvStatus;
+const Topic = {
+  "tv": "/tv",
+  "ip": "/ip_address"
+};
 
 var connectToIot = function(topic, callback) {
   var client  = mqtt.connect(iotBrokerURL, connectOptions);
   client.on('connect', function () {
     console.log('mqtt connected');
-    client.subscribe(iotTopicPrefix + topic, {"qos": 1});
+    client.subscribe(iotTopicPrefix + '/status' + topic, {"qos": 1});
     return callback(client);
   });
 };
@@ -66,7 +70,7 @@ const handlers = {
       console.log(slotValue);
 
       searchVideoOnYoutube(slotValue, function(videoIds) {
-        connectToIot('/tv', function(client) {
+        connectToIot(Topic.tv, function(client) {
           videoIds.forEach(function(videoId) {
             mqttPublish(client, '/command/play', videoId);
           });
@@ -79,7 +83,7 @@ const handlers = {
   },
   'turnOnTvIntent': function() {
     const handler = this;
-    connectToIot('/tv', function(client) {
+    connectToIot(Topic.tv, function(client) {
       mqttPublish(client, '/command', 'tv on');
       client.on('message', function (topic, message) {
         // message is Buffer
@@ -93,7 +97,7 @@ const handlers = {
   },
   'turnOffTvIntent': function() {
     const handler = this;
-    connectToIot('/tv', function(client) {
+    connectToIot(Topic.tv, function(client) {
       mqttPublish(client, '/command', 'tv off');
       client.on('message', function (topic, message) {
         // message is Buffer
@@ -108,7 +112,7 @@ const handlers = {
   'getTvStatus': function() {
     const handler = this;
 
-    connectToIot('/tv', function(client) {
+    connectToIot(Topic.tv, function(client) {
       mqttPublish(client, '/command', 'tv status');
       client.on('message', function (topic, message) {
         // message is Buffer
@@ -150,7 +154,7 @@ const handlers = {
     const infoArr = this.t('INFO');
     const infoAnswer = infoArr[slotValue];
     const getIPHandler = this;
-    connectToIot('/ip_address', function(client) {
+    connectToIot(Topic.ip, function(client) {
       client.on('message', function (topic, message) {
         // message is Buffer
         ip = message.toString();
