@@ -30,8 +30,10 @@ const languageStrings = {
         'phone number' : 'The office phone number is 0322471011'
       },
       "GET_INFO_MESSAGE": '',
-      "GET_COMMANDS_MESSAGE": 'You can ask me about: my IP address, office phone number, TV status, or, you can say exit...',
-      "SKILL_NAME": 'Malaysia Office Facts',
+      "COMMANDS_MESSAGE": 'You can ask me about: My IP address or TV status. You can ask me to: turn on and off TV, or play video from Youtube.',
+      "GREETING_MESSAGE": 'Hello, how can I help you?',
+      "HELP_MESSAGE": 'If this is your first time please say: configure my device. Or you can ask what can I do.',
+      "SKILL_NAME": 'AlexaPiCast',
     },
   },
 };

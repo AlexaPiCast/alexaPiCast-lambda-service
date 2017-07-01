@@ -11,7 +11,7 @@ const Alexa = require('alexa-sdk');
 const mqtt = require('mqtt');
 const request = require('request');
 
-var iotBrokerURL, iotTopicPrefix, youtubeApiKey;
+var deviceId, iotBrokerURL, iotTopicPrefix, youtubeApiKey;
 const connectOptions = {}; // TODO provide options specific to your MQTT broker (optional)
 const languageStrings = require('resource.js');
 var ip, tvStatus;
@@ -47,29 +47,34 @@ var searchVideoOnYoutube = function(keyword, callback) {
 
 const handlers = {
   'LaunchRequest': function () {
-    this.emit('GetCommands');
+    this.emit('doGreetings');
   },
   'getInfoIntent' : function () {
     this.emit('getInfo');
   },
   'playVideoIntent': function() {
     const handler = this;
-    var infoSlot = this.event.request.intent.slots['songTitle'];
-    var slotValue;
-    if (infoSlot && infoSlot.value) {
-      slotValue = infoSlot.value.toLowerCase();
-    }
-    console.log(slotValue);
+    const dialogState = this.event.request.dialogState;
+    if (dialogState === 'STARTED' || dialogState === 'IN_PROGRESS') {
+      this.emit(':delegate');
+    } else {
+      var infoSlot = this.event.request.intent.slots['songTitle'];
+      var slotValue;
+      if (infoSlot && infoSlot.value) {
+        slotValue = infoSlot.value.toLowerCase();
+      }
+      console.log(slotValue);
 
-    searchVideoOnYoutube(slotValue, function(videoIds) {
-      connectToIot('/tv', function(client) {
-        videoIds.forEach(function(videoId) {
-          mqttPublish(client, '/command/play', videoId);
+      searchVideoOnYoutube(slotValue, function(videoIds) {
+        connectToIot('/tv', function(client) {
+          videoIds.forEach(function(videoId) {
+            mqttPublish(client, '/command/play', videoId);
+          });
+          const speechOutput = 'The video you requested will be played in a moment';
+          handler.emit(':tell', speechOutput);
         });
-        const speechOutput = 'Your request is my command';
-        handler.emit(':tell', speechOutput);
       });
-    });
+    }
 
   },
   'turnOnTvIntent': function() {
@@ -137,7 +142,7 @@ const handlers = {
         this.emit('getTvStatus', slotValue);
         break;
       default:
-      this.emit('GetCommands');
+      this.emit('doGreetings');
     }
   },
   'getIP': function(slotValue) {
@@ -156,13 +161,16 @@ const handlers = {
     });
   },
   'getCommandsIntent' : function() {
-    this.emit('GetCommands');
+    const speechOutput = this.t('COMMANDS_MESSAGE');
+    this.emit(':tell', speechOutput);
   },
-  'GetCommands' : function() {
-
-    const speechOutput = this.t('GET_COMMANDS_MESSAGE');
-    this.emit(':ask', speechOutput, speechOutput);
-    // this.emit(':tellWithCard', speechOutput, this.t('SKILL_NAME'), speechOutput);
+  'doGreetings' : function() {
+    const speechOutput = this.t('GREETING_MESSAGE');
+    const reprompt = this.t('HELP_MESSAGE');
+    this.emit(':ask', speechOutput, reprompt);
+  },
+  'setupflowIntent' : function() {
+    this.emit(':tellWithCard', 'setup is completed. please restart your node-red', this.t('SKILL_NAME'), deviceId);
   },
   'AMAZON.HelpIntent': function () {
     const speechOutput = this.t('HELP_MESSAGE');
@@ -182,10 +190,23 @@ const handlers = {
   }
 };
 
+var checkDeviceId = function(event) {
+  if (typeof event.context !== "undefined") {
+    deviceId = event.context.System.device.deviceId;
+  }
+  if (typeof deviceId === "undefined") {
+    iotTopicPrefix = process.env.TOPIC_PREFIX;
+  } else {
+    iotTopicPrefix = deviceId;
+  }
+};
+
 exports.handler = function (event, context) {
   const alexa = Alexa.handler(event, context);
   alexa.APP_ID = process.env.APP_ID;
-  iotTopicPrefix = process.env.TOPIC_PREFIX;
+
+  checkDeviceId(event);
+
   iotBrokerURL = process.env.BROKER_URL;
   youtubeApiKey = process.env.YOUTUBE_API_KEY;
   // To enable string internationalization (i18n) features, set a resources object.
