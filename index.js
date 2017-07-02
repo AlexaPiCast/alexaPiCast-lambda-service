@@ -9,15 +9,16 @@
 
 const Alexa = require('alexa-sdk');
 const mqtt = require('mqtt');
-const request = require('request');
 
 var deviceId, iotBrokerURL, iotTopicPrefix, youtubeApiKey;
 const connectOptions = {}; // TODO provide options specific to your MQTT broker (optional)
 const languageStrings = require('resource.js');
+const utils = require('./utils.js');
 var ip, tvStatus;
 const Topic = {
   "tv": "/tv",
-  "ip": "/ip_address"
+  "ip": "/ip_address",
+  "setup": "/setup"
 };
 
 var connectToIot = function(topic, callback) {
@@ -31,22 +32,6 @@ var connectToIot = function(topic, callback) {
 
 var mqttPublish = function(client, topic, payload) {
   client.publish(iotTopicPrefix + topic, payload);
-};
-
-var searchVideoOnYoutube = function(keyword, callback) {
-  var url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&key=' + youtubeApiKey;
-  url += '&q=' + keyword;
-  request(url, function (error, response, body) {
-
-    var jsonBody = JSON.parse(body);
-    var videoIds = [];
-    if (body.items !== null) {
-      jsonBody.items.forEach(function(item) {
-         videoIds.push(item.id.videoId);
-       });
-    }
-    return callback(videoIds);
-  });
 };
 
 const handlers = {
@@ -69,7 +54,7 @@ const handlers = {
       }
       console.log(slotValue);
 
-      searchVideoOnYoutube(slotValue, function(videoIds) {
+      utils.searchVideoOnYoutube(slotValue, youtubeApiKey, function(videoIds) {
         connectToIot(Topic.tv, function(client) {
           videoIds.forEach(function(videoId) {
             mqttPublish(client, '/command/play', videoId);
@@ -174,7 +159,22 @@ const handlers = {
     this.emit(':ask', speechOutput, reprompt);
   },
   'setupflowIntent' : function() {
-    this.emit(':tellWithCard', 'setup is completed. please restart your node-red', this.t('SKILL_NAME'), deviceId);
+    const patchMsg = this.t('UPGRADE_MESSAGE');
+    this.emit(':askWithCard', patchMsg, patchMsg, this.t('SKILL_NAME'), deviceId);
+  },
+  'patchFlowIntent': function() {
+    const handler = this;
+    connectToIot(Topic.setup, function(client) {
+      const deviceFlow = utils.personaliseFlowConfig(deviceId);
+      mqttPublish(client, '/command/flows', deviceFlow);
+      client.on('message', function (topic, message) {
+        // message is Buffer
+        client.end();
+        const speechOutput = "Response: " + message.toString().replace("'C\n","");
+        handler.emit(':tell', speechOutput);
+      });
+    });
+    this.emit();
   },
   'AMAZON.HelpIntent': function () {
     const speechOutput = this.t('HELP_MESSAGE');
